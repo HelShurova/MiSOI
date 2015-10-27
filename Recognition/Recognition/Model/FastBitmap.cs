@@ -17,10 +17,12 @@ namespace Recognition.Model
         public int Depth { get; private set; }
         public int Width { get; private set; }
         public int Height { get; private set; }
+        public Bitmap Bitmap { get; private set; }
 
         public FastBitmap(Bitmap source)
         {
             this.source = source;
+            this.Bitmap = source;
         }
 
         /// <summary>

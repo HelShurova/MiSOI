@@ -90,13 +90,15 @@ namespace Recognition.ViewModel
         }
 
         private Harries harries;
-        
+        private LucasKanadeMethod lucasKanade;
+
         public VideoViewModel()
         {
             CurrentPosition = -1;
             LoadCommand = new RelayCommand(Load);
             GetNextFrameCommand = new RelayCommand(GetNextFrame);
             harries = new Harries();
+            lucasKanade = new LucasKanadeMethod();
         }
 
         private double GetDeviation(FastBitmap bitmap)
@@ -141,7 +143,7 @@ namespace Recognition.ViewModel
             }
             return result;
         }
-        private Bitmap ConvertIntsToBitmap(int[,] map)
+        private Bitmap ConvertIntsToBitmap(int[,] map,FastBitmap frame)
         {
             Bitmap result = new Bitmap(map.GetLength(0), map.GetLength(1));
             for (int i = 0; i < map.GetLength(0); i++)
@@ -149,7 +151,7 @@ namespace Recognition.ViewModel
                 for (int j = 0; j < map.GetLength(1); j++)
                 {
                     if (map[i, j] == ObjectBit)
-                        result.SetPixel(i, j, RealFrame.GetPixel(i,j));
+                        result.SetPixel(i, j, frame.Bitmap.GetPixel(i, j));
                     else
                         result.SetPixel(i, j, Color.Black);
                 }
@@ -257,17 +259,16 @@ namespace Recognition.ViewModel
                 if (RealFrame != null)
                 {
                     FastBitmap realFrame = new FastBitmap(RealFrame);
-                    realFrame.LockBits();
-                    var arr = Subtraction(realFrame, Range);
-                    realFrame.UnlockBits();
-                    arr = Closing(arr);
-                    Bitmap frame = ConvertIntsToBitmap(arr);
-                    List<Point> corner = harries.Corner(frame);
-                    foreach(Point c in corner)
+                    Bitmap frame = SubstracteBackground(realFrame);
+                    List<Point> corners = harries.Corner(frame);
+                    if (corners.Count > 0)
                     {
-                        for (int x = c.X - 2; x < c.X + 2; x++)
-                            for (int y = c.Y - 2; y < c.Y + 2; y++ )
-                                frame.SetPixel(x,y, Color.Green);
+                        FastBitmap nextFrame = GetBitmap(CurrentPosition + (float)TimerInterval);
+                        if (nextFrame != null)
+                        {
+                            Bitmap nextSubstarectedFrame = SubstracteBackground(nextFrame);
+                            lucasKanade.GetImageWithDisplacement(frame, nextSubstarectedFrame, corners);
+                        }
                     }
                     SubstarectedFrame = frame;
                     CurrentPosition += (float)TimerInterval;                    
@@ -278,6 +279,15 @@ namespace Recognition.ViewModel
                     SubstarectedFrame = null;
                 }
             }
+        }
+
+        private Bitmap SubstracteBackground(FastBitmap source)
+        {
+            source.LockBits();
+            var arr = Subtraction(source, Range);
+            source.UnlockBits();
+            arr = Closing(arr);
+            return ConvertIntsToBitmap(arr, source);
         }
 
         //TODO: save all images in directories, then try show it as video
