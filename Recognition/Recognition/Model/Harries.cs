@@ -16,16 +16,18 @@ namespace Recognition.Model
 
         public List<Point> Corner(Bitmap img)
         {
+            FastBitmap fb = new FastBitmap(img);
+            fb.LockBits();
             List<Point> result = new List<Point>();
-            Derivative[,] imgDerivative = GetImgDerivative(img);
+            Derivative[,] imgDerivative = GetImgDerivative(fb);
             double[,] responceMatrix = new double[img.Width, img.Height];
             for (int x = 0; x < img.Width - WindowWidth; x++)
                 for (int y = 0; y < img.Height - WindowWidth; y++ )
                 {
                     Point[,] window = CreateWindow(x, y);
-                    if (IsObjectInWindow(window, img))
+                    if (IsObjectInWindow(window, fb))
                     {
-                        Matrix autoCorrelationMatrix = GetAutocorrelationMatrix(img, window, imgDerivative);
+                        Matrix autoCorrelationMatrix = GetAutocorrelationMatrix(fb, window, imgDerivative);
                         responceMatrix[x + 2, y + 2] = Response(autoCorrelationMatrix, Coef);
                     }
                 }
@@ -37,10 +39,11 @@ namespace Recognition.Model
                     if (localMax != NotExist)
                         result.Add(localMax);
                 }
-           return result;
+            fb.UnlockBits();
+            return result;
         }
 
-        private bool IsObjectInWindow(Point[,] window, Bitmap img)
+        private bool IsObjectInWindow(Point[,] window, FastBitmap img)
         {
             bool result = false;
             foreach(Point p in window)
@@ -86,7 +89,7 @@ namespace Recognition.Model
             return window;
         }
 
-        private Matrix GetAutocorrelationMatrix(Bitmap img, Point[,] window, Derivative[,] ImgDerivative)
+        private Matrix GetAutocorrelationMatrix(FastBitmap img, Point[,] window, Derivative[,] ImgDerivative)
         {
             Matrix result = new Matrix(2, 2);
             foreach (Point p in window)
@@ -111,7 +114,7 @@ namespace Recognition.Model
             return det - mT * mT * k;
         }
 
-        private Derivative[,] GetImgDerivative(Bitmap img)
+        private Derivative[,] GetImgDerivative(FastBitmap img)
         {
             Derivative[,] result = new Derivative[img.Width, img.Height];
             double[,] region = new double[RegionLength, RegionLength];
@@ -126,7 +129,7 @@ namespace Recognition.Model
             return result;
         }
 
-        private double[,] GetRegion(Bitmap img, int x, int y)
+        private double[,] GetRegion(FastBitmap img, int x, int y)
         {
             double[,] region = new double[RegionLength, RegionLength];
             for (int i = 0; i < RegionLength; i++)

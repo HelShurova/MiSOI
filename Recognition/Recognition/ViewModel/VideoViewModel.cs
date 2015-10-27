@@ -14,7 +14,7 @@ using Recognition.Model;
 
 namespace Recognition.ViewModel
 {
-    public class VideoViewModel : ViewModelBase
+    public class VideoViewModel : ViewModelBase, IDisposable
     {
         // White pixel - object, black - background
         const int ObjectBit = 1;
@@ -32,17 +32,22 @@ namespace Recognition.ViewModel
             }
             set
             {
+                if (Background != null)
+                    Background.UnlockBits();
+                RealFrame = null;
+                SubstarectedFrame = null;
                 _filePath = value;
                 RaisePropertyChanged("FileName");
                 CurrentPosition = 0;
                 Background = GetBitmap(0);
+                Background.LockBits();
             }
         }
         public string FileName
         {
             get { return Path.GetFileName(FilePath); }
         }
-        public Bitmap Background { get; set; }
+        public FastBitmap Background { get; set; }
 
         private Bitmap _realFrame;
         public Bitmap RealFrame
@@ -94,7 +99,7 @@ namespace Recognition.ViewModel
             harries = new Harries();
         }
 
-        private double GetDeviation(Bitmap bitmap)
+        private double GetDeviation(FastBitmap bitmap)
         {
             double sum = 0;
             int count = bitmap.Height * bitmap.Width;
@@ -118,7 +123,7 @@ namespace Recognition.ViewModel
             return Math.Sqrt(variance);
         }
 
-        private int[,] Subtraction(Bitmap current, double range)
+        private int[,] Subtraction(FastBitmap current, double range)
         {
             int[,] result = new int[current.Width, current.Height];
             for (int x =0; x< current.Width; x++)
@@ -204,12 +209,12 @@ namespace Recognition.ViewModel
 
             return result;
         }
-        private Bitmap GetBitmap(float time)
+        private FastBitmap GetBitmap(float time)
         {
-            Bitmap result;
+            FastBitmap result;
             using (var stream = new MemoryStream())
             {
-                result = GetBitmap(time, stream);
+                result = new FastBitmap(GetBitmap(time, stream));
             }
             return result;
         }
@@ -222,7 +227,7 @@ namespace Recognition.ViewModel
             if (stream.Length != 0)
             {
                 Image img = Image.FromStream(stream);
-                result = new Bitmap(img, img.Width / Scale, img.Height / Scale);
+                result = new Bitmap(new Bitmap(img, img.Width / Scale, img.Height / Scale));
             }
             return result;
         }
@@ -247,11 +252,14 @@ namespace Recognition.ViewModel
         private void GetNextFrame()
         {
             using (MemoryStream stream = new MemoryStream())
-            {
+            { 
                 RealFrame = GetBitmap(CurrentPosition, stream);
                 if (RealFrame != null)
                 {
-                    var arr = Subtraction(RealFrame, Range);
+                    FastBitmap realFrame = new FastBitmap(RealFrame);
+                    realFrame.LockBits();
+                    var arr = Subtraction(realFrame, Range);
+                    realFrame.UnlockBits();
                     arr = Closing(arr);
                     Bitmap frame = ConvertIntsToBitmap(arr);
                     List<Point> corner = harries.Corner(frame);
@@ -262,15 +270,21 @@ namespace Recognition.ViewModel
                                 frame.SetPixel(x,y, Color.Green);
                     }
                     SubstarectedFrame = frame;
-                    CurrentPosition += (float)TimerInterval;
+                    CurrentPosition += (float)TimerInterval;                    
                 }
                 else
                 {
                     CurrentPosition = -1;
+                    SubstarectedFrame = null;
                 }
             }
         }
 
         //TODO: save all images in directories, then try show it as video
+
+        public void Dispose()
+        {
+            Background.UnlockBits();
+        }
     }
 }
