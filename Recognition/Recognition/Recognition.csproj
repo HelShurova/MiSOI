@@ -82,6 +82,10 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="Model\Complex.cs" />
+    <Compile Include="Model\Derivative.cs" />
+    <Compile Include="Model\Harries.cs" />
+    <Compile Include="Model\Matrix.cs" />
     <Compile Include="ViewModel\VideoViewModel.cs" />
     <Compile Include="ViewModel\ViewModelLocator.cs" />
     <Compile Include="View\Converter\ImageToBitmapSourceConverter.cs" />
@@ -126,7 +130,6 @@
     <Content Include="Resources\angel.mp4" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="Model\" />
     <Folder Include="View\Constrols\" />
   </ItemGroup>
   <ItemGroup>

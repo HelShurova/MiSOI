@@ -10,17 +10,18 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Collections.Generic;
 using System.Collections;
-using System.Diagnostics;
+using Recognition.Model;
 
 namespace Recognition.ViewModel
 {
     public class VideoViewModel : ViewModelBase
     {
         // White pixel - object, black - background
-        const int WhiteBit = 1;
-        const int BlackBit = 0;
-
-        const int Scale = 5;
+        const int ObjectBit = 1;
+        const int BackgroundBit = 0;
+        const int Scale = 5; 
+        private const double TimerInterval = 1;
+        private const double Range = 0.2;
 
         private string _filePath;
         public string FilePath 
@@ -83,14 +84,14 @@ namespace Recognition.ViewModel
             }
         }
 
-
-        private const double TimerInterval = 1;
+        private Harries harries;
         
         public VideoViewModel()
         {
             CurrentPosition = -1;
             LoadCommand = new RelayCommand(Load);
             GetNextFrameCommand = new RelayCommand(GetNextFrame);
+            harries = new Harries();
         }
 
         private double GetDeviation(Bitmap bitmap)
@@ -128,9 +129,9 @@ namespace Recognition.ViewModel
                     System.Drawing.Color currentPixel = current.GetPixel(x, y);
                     double delta = Math.Abs(currentPixel.GetBrightness() - backgroundPixel.GetBrightness());
                     if (delta > range)
-                        result[x,y] = WhiteBit;
+                        result[x,y] = ObjectBit;
                     else
-                        result[x,y] = BlackBit;
+                        result[x,y] = BackgroundBit;
                 }
             }
             return result;
@@ -142,8 +143,8 @@ namespace Recognition.ViewModel
             {
                 for (int j = 0; j < map.GetLength(1); j++)
                 {
-                    if (map[i, j] == WhiteBit)
-                        result.SetPixel(i, j, Color.White);
+                    if (map[i, j] == ObjectBit)
+                        result.SetPixel(i, j, RealFrame.GetPixel(i,j));
                     else
                         result.SetPixel(i, j, Color.Black);
                 }
@@ -250,9 +251,17 @@ namespace Recognition.ViewModel
                 RealFrame = GetBitmap(CurrentPosition, stream);
                 if (RealFrame != null)
                 {
-                    var arr = Subtraction(RealFrame, 0.2);
+                    var arr = Subtraction(RealFrame, Range);
                     arr = Closing(arr);
-                    SubstarectedFrame = ConvertIntsToBitmap(arr);
+                    Bitmap frame = ConvertIntsToBitmap(arr);
+                    List<Point> corner = harries.Corner(frame);
+                    foreach(Point c in corner)
+                    {
+                        for (int x = c.X - 2; x < c.X + 2; x++)
+                            for (int y = c.Y - 2; y < c.Y + 2; y++ )
+                                frame.SetPixel(x,y, Color.Green);
+                    }
+                    SubstarectedFrame = frame;
                     CurrentPosition += (float)TimerInterval;
                 }
                 else
@@ -262,10 +271,6 @@ namespace Recognition.ViewModel
             }
         }
 
-        private Bitmap GetObject(Bitmap source, int[,] mask)
-        {
-            Bitmap result = null;
-            return result;
-        }
+        //TODO: save all images in directories, then try show it as video
     }
 }
