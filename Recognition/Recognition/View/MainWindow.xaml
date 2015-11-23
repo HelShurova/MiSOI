@@ -12,8 +12,8 @@
     </Window.Resources>
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="1*"/>
-            <ColumnDefinition Width="10*"/>
+            <ColumnDefinition Width="45"/>
+            <ColumnDefinition Width="auto"/>
         </Grid.ColumnDefinitions>
 
         <StackPanel Grid.Column="0">
@@ -43,10 +43,10 @@
                 <RowDefinition Height="1*"/>
                 <RowDefinition Height="1*"/>
             </Grid.RowDefinitions>
-            <Border Margin="5" Grid.Row="0">
+            <Border Margin="5" Grid.Row="0" HorizontalAlignment="Center">
                 <Image Source="{Binding SubstarectedFrame, Converter={StaticResource img}}"/>
             </Border>
-            <Border Margin="5" Grid.Row="1">
+            <Border Margin="5" Grid.Row="1" HorizontalAlignment="Center">
                 <Image Source="{Binding RealFrame, Converter={StaticResource img}}"/>
             </Border>
         </Grid>        

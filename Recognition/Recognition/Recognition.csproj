@@ -82,11 +82,13 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
-    <Compile Include="Model\Complex.cs" />
+    <Compile Include="Model\BRIEF.cs" />
     <Compile Include="Model\Derivative.cs" />
     <Compile Include="Model\FastBitmap.cs" />
     <Compile Include="Model\Harries.cs" />
-    <Compile Include="Model\Matrix.cs" />
+    <Compile Include="Model\LucasKanadeMethod.cs" />
+    <Compile Include="Model\MedianFilter.cs" />
+    <Compile Include="Model\VibeModel.cs" />
     <Compile Include="ViewModel\VideoViewModel.cs" />
     <Compile Include="ViewModel\ViewModelLocator.cs" />
     <Compile Include="View\Converter\ImageToBitmapSourceConverter.cs" />
