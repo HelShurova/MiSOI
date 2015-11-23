@@ -15,43 +15,43 @@ namespace Recognition.Model
         private const int MAX_DISPLACEMENT = 50;
         private const int MAX_KOEFF = 300;
 
-        private PixelFormat pixelFormat;
-        private int nBytesPerPixel;
-        private BRIEF brief;
+        private int _nBytesPerPixel;
+        private BRIEF _brief;
 
         public LucasKanadeMethod()
         {
         }
-        public Bitmap GetImageWithDisplacement(Bitmap currFrame, Bitmap nextFrame, List<Point> edgePoints)
+        public FastBitmap GetImageWithDisplacement(FastBitmap currFrame, FastBitmap nextFrame, List<Point> edgePoints)
         {
-            edgePoints = edgePoints.Distinct().ToList();
-            pixelFormat = (Image.GetPixelFormatSize(currFrame.PixelFormat) / 8 > 2) ? currFrame.PixelFormat : PixelFormat.Format24bppRgb;
-            nBytesPerPixel = Image.GetPixelFormatSize(pixelFormat) / 8;
-            int currFrameStride, nextFrameStride;
-            byte[] currRgbValues = GetRgbValuesFromBitmap(currFrame, out currFrameStride);
-            byte[] nextRgbValues = GetRgbValuesFromBitmap(nextFrame, out nextFrameStride);
+            _nBytesPerPixel = currFrame.CCount;
+            currFrame.LockBits();
+            nextFrame.LockBits();
+            byte[] currRgbValues = currFrame.Pixels;
+            byte[] nextRgbValues = nextFrame.Pixels;
             Dictionary<Point, Point> displacements = new Dictionary<Point, Point>();
             foreach (Point edgePoint in edgePoints)
             {
                 int edgePointPos;
-                List<Color> pointVicinity = GetPointVicinity(edgePoint, currRgbValues, currFrame.Width, currFrame.Height, currFrameStride, out edgePointPos);
-                brief = new BRIEF((POINT_WINDOW_SIDE + 1) * (POINT_WINDOW_SIDE + 1),edgePointPos);
-                string vicinityDescriptor = brief.GetImageDescriptor(pointVicinity);
+                List<Color> pointVicinity = GetPointVicinity(edgePoint, currRgbValues, currFrame.Width, currFrame.Height, currFrame.Stride, out edgePointPos);
+                _brief = new BRIEF((POINT_WINDOW_SIDE + 1) * (POINT_WINDOW_SIDE + 1),edgePointPos);
+                string vicinityDescriptor = _brief.GetImageDescriptor(pointVicinity);
                 if (pointVicinity[edgePointPos] != Color.Black)
                 {
-                    Point nextFramePoint = FindPointDiscplacement(edgePoint, nextRgbValues, nextFrame.Width, nextFrame.Height, vicinityDescriptor, nextFrameStride, pointVicinity[edgePointPos]);
+                    Point nextFramePoint = FindPointDiscplacement(edgePoint, nextRgbValues, nextFrame.Width, nextFrame.Height, vicinityDescriptor, nextFrame.Stride, pointVicinity[edgePointPos]);
                     displacements.Add(edgePoint, nextFramePoint);
                 }
                 else
                     displacements.Add(edgePoint,edgePoint);
             }
+            currFrame.UnlockBits();
+            nextFrame.UnlockBits();
             DrawDisplacement(currFrame, displacements);
             return currFrame;
         }
 
-        private void DrawDisplacement(Bitmap source,Dictionary<Point, Point> displacements)
+        private void DrawDisplacement(FastBitmap source,Dictionary<Point, Point> displacements)
         {
-            Graphics graphics = Graphics.FromImage(source);
+            Graphics graphics = Graphics.FromImage(source.Source);
             Pen pen = new Pen(Color.Aqua);
             pen.EndCap = LineCap.ArrowAnchor;
             RemoveLongLine(displacements);
@@ -101,9 +101,9 @@ namespace Recognition.Model
                     List<Color> pointVicinity = GetPointVicinity(newPoint, rgbValues, imgWidth, imgHeight, imgStride,out pointPos);
                     if (pointVicinity.Any(c => c != Color.Black) )
                     {
-                        string nextFrameDescr = brief.GetImageDescriptor(pointVicinity);
+                        string nextFrameDescr = _brief.GetImageDescriptor(pointVicinity);
                         if (!similarities.Keys.Contains(newPoint))
-                            similarities.Add(newPoint, brief.GetDescriptorsSimilarity(currFrameDescr, nextFrameDescr));
+                            similarities.Add(newPoint, _brief.GetDescriptorsSimilarity(currFrameDescr, nextFrameDescr));
                     }
                 }
                 if (pntBehindImg == length)
@@ -145,21 +145,10 @@ namespace Recognition.Model
                 {
                     if (point.X == x && point.Y == y)
                         pointPos = result.Count;
-                    int bytePosition = imgStride * y + x * nBytesPerPixel;
+                    int bytePosition = imgStride * y + x * _nBytesPerPixel;
                     result.Add(Color.FromArgb(rgbValues[bytePosition + 2], rgbValues[bytePosition + 1], rgbValues[bytePosition]));
                 }
             return result;
-        }
-
-        private byte[] GetRgbValuesFromBitmap(Bitmap sourceImg, out int stride)
-        {
-            BitmapData bmpData = sourceImg.LockBits(new Rectangle(0, 0, sourceImg.Width, sourceImg.Height), ImageLockMode.ReadWrite, pixelFormat);
-            stride = bmpData.Stride;
-            int bytes = bmpData.Stride * bmpData.Height;
-            byte[] rgbValues = new byte[bytes];
-            System.Runtime.InteropServices.Marshal.Copy(bmpData.Scan0, rgbValues, 0, bytes);
-            sourceImg.UnlockBits(bmpData);
-            return rgbValues;
         }
 
     }
