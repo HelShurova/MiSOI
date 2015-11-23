@@ -30,20 +30,25 @@ namespace Recognition.Model
             X = Y = 0;
         }
 
-        public Derivative(double[,] region)
+        public Derivative(double[] region, int index, int width)
         {
-            X = GetDerivative(region, Xmask);
-            Y = GetDerivative(region, Ymask);
+            X = GetDerivative(region, index, width, Xmask);
+            Y = GetDerivative(region, index, width, Ymask);
         }
 
-        private double GetDerivative(double[,] region, int[,] deriv)
+        private double GetDerivative(double[] region, int index, int width, int[,] deriv)
         {
             double result = 0;
-            for (int i = 0; i < deriv.GetLength(0); i++)
+            int row = 0;
+            for (int j = 0; j < deriv.GetLength(1); j++)
             {
-                for (int j = 0; j < deriv.GetLength(1); j++)
+                row += width;
+                for (int i = 0; i < deriv.GetLength(0); i++)
                 {
-                    result += region[i, j] * deriv[i, j];
+                    int currentIndex = row + index + i;
+                    double val = region[currentIndex % region.Length];
+                    if (val > 0.000001)
+                        result += val * deriv[i, j];
                 }
             }
             return result;

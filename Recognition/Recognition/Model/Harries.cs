@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Drawing;
+using System.Diagnostics;
 
 namespace Recognition.Model
 {
@@ -11,133 +12,154 @@ namespace Recognition.Model
     {
         const int RegionLength = 3;
         const int WindowWidth = 5;
-        Point NotExist = new Point(-1, -1);
-        const double Coef = 0.06;//[0.04, 0.06]
+        const int AutocorMatrixLength = 4;
+        const int Diametr = 10;
+        const double Coef = 0.04;//[0.04, 0.06]
 
-        public List<Point> Corner(Bitmap img)
+        public List<Point> Corner(byte[] mask, int imgWidth, int imgHeight)
         {
-            FastBitmap fb = new FastBitmap(img);
-            fb.LockBits();
             List<Point> result = new List<Point>();
-            Derivative[,] imgDerivative = GetImgDerivative(fb);
-            double[,] responceMatrix = new double[img.Width, img.Height];
-            for (int x = 0; x < img.Width - WindowWidth; x++)
-                for (int y = 0; y < img.Height - WindowWidth; y++ )
-                {
-                    Point[,] window = CreateWindow(x, y);
-                    if (IsObjectInWindow(window, fb))
-                    {
-                        Matrix autoCorrelationMatrix = GetAutocorrelationMatrix(fb, window, imgDerivative);
-                        responceMatrix[x + 2, y + 2] = Response(autoCorrelationMatrix, Coef);
-                    }
-                }
-            int radius = 10;
-            for (int i = radius; i < img.Width - radius; i+=2*radius)
-                for (int j = radius; j < img.Height - radius; j+=2*radius )
-                {
-                    Point localMax = LocalMax(new Point(i, j), radius, responceMatrix, Coef);
-                    if (localMax != NotExist)
-                        result.Add(localMax);
-                }
-            fb.UnlockBits();
-            return result;
-        }
-
-        private bool IsObjectInWindow(Point[,] window, FastBitmap img)
-        {
-            bool result = false;
-            foreach(Point p in window)
+            int imgLength = mask.Length;
+            double[] brightness = new double[imgLength];
+            for (int i = 0; i < mask.Length; i++)
             {
-                if (img.GetPixel(p.X, p.Y) != Color.Black)
-                {
-                    result = true;
-                    break;
-                }
+                brightness[i] = (double)mask[i]/255.0;
             }
-            return result;
+            Dictionary<int, double[]> derivative = GetImgDerivative(brightness, imgWidth, imgHeight);
+            Dictionary<int, double[]> m = AutocorMatrix(derivative, imgWidth,imgHeight, imgLength);
+            Dictionary<int, double> responces = Responces(m, Coef);
+
+            int[] localWindow = InitializeWindow(imgWidth, Diametr);
+            int beforIndex = 0;
+            foreach(int index in responces.Keys)
+            {
+                int delta = index - beforIndex;
+                NextWindow(ref localWindow, imgLength,delta);
+                Point localMax = LocalMax(localWindow, responces, imgWidth,imgHeight, Coef);
+                    result.Add(localMax);
+                beforIndex = index;
+            }
+            return result.Distinct().ToList();
         }
 
-        private Point LocalMax(Point center, int radius, double[,] response, double range)
+
+        private Point LocalMax(int[] window, Dictionary<int, double> responce,int imgWidth,int imgHeight, double range)
         {
-            Point result = NotExist;
             double max = -1;
-            Point localMax = new Point();
-            for (int i = center.X - radius; i <= center.X + radius; i++)
-                for (int j = center.Y - radius; j <= center.Y + radius; j++ )
+            int maxIndex = 0;
+            foreach(int index in window)
+            {
+                double value;
+                if (responce.TryGetValue(index, out value))
                 {
-                    if (response[i,j] > max)
+                    if (max < value)
                     {
-                        max = response[i, j];
-                        localMax.X = i;
-                        localMax.Y = j;
+                        max = value;
+                        maxIndex = index;
                     }
-                }
-            if (max > range)
-                result = localMax;
-            return result;
+                }                
+            }
+            return new Point(maxIndex % imgWidth, (maxIndex / imgWidth) % imgHeight);
         }
 
-        private Point[,] CreateWindow(int x, int y)
+        private int[] InitializeWindow(int imgWidth, int windowSide)
         {
-            Point[,] window = new Point[WindowWidth , WindowWidth];
-            for (int i = 0; i < WindowWidth; i++)
-                for (int j = 0; j < WindowWidth; j++)
+            int[] window = new int[windowSide * windowSide];
+            int n= 0;
+            for (int i = 0; i < windowSide; i++)
+                for (int j = 0; j < windowSide; j++)
                 {
-                    window[i, j].X = x + i;
-                    window[i, j].Y = y + j;
+                    int index = (j * imgWidth) + i;
+                    window[n++] = index;
                 }
             return window;
         }
 
-        private Matrix GetAutocorrelationMatrix(FastBitmap img, Point[,] window, Derivative[,] ImgDerivative)
+        private Dictionary<int, double[]> AutocorMatrix(Dictionary<int, double[]> deriv, int imgWidth, int imgHeight, int imgLength)
         {
-            Matrix result = new Matrix(2, 2);
-            foreach (Point p in window)
+            var m = new Dictionary<int, double[]>();
+            int[] window = InitializeWindow(imgWidth, WindowWidth);
+            int beforIndex = 0;
+            foreach(int index in deriv.Keys)
             {
-                double[,] m = new double[2, 2];
-                Derivative I = ImgDerivative[p.X,p.Y];
-                if (I == null)
-                    I = new Derivative(0, 0);
-                m[0, 0] = I.X * I.X;
-                m[0, 1] = m[1, 0] = I.X * I.Y;
-                m[1, 1] = I.Y * I.Y;
-                Matrix adder = new Matrix(m);
-                result += adder;
+                int delta = index - beforIndex;
+                NextWindow(ref window, imgLength, delta);
+                var s = Sum(window, deriv);
+                if (s != null)
+                {
+                    m.Add(index, s);
+                }
+                beforIndex = index;
+            }
+            return m;
+        }
+
+        private void NextWindow(ref int[] window, int imgLength, int delta)
+        {
+            for (int i = 0; i < window.Length; i++)
+                window[i] = (window[i] + delta) % imgLength;
+        }
+
+        private Dictionary<int, double> Responces(Dictionary<int, double[]> matrix, double k)
+        {
+            var result = new Dictionary<int, double>();
+            foreach(int index in matrix.Keys)
+            {
+                double[] m = matrix[index];
+                double det = m[0] * m[3] - m[1] * m[2];
+                double tr = m[0] + m[3];
+                double responce = det - (tr * tr * k);
+                if (responce > k)
+                    result.Add(index, responce);
             }
             return result;
         }
 
-        private double Response(Matrix m, double k)
+        private double[] Sum(int[] window, Dictionary<int, double[]> deriv)
         {
-            double det = m.Determinant().Re;
-            double mT = m.Trace().Re;
-            return det - mT * mT * k;
-        }
-
-        private Derivative[,] GetImgDerivative(FastBitmap img)
-        {
-            Derivative[,] result = new Derivative[img.Width, img.Height];
-            double[,] region = new double[RegionLength, RegionLength];
-            for (int x = 1; x < img.Width - 1; x++)
+            double[] sum = new double[AutocorMatrixLength] {0,0,0,0};
+            foreach (int index in window)
             {
-                for (int y = 1; y < img.Height - 1; y++)
+                if (deriv.ContainsKey(index))
                 {
-                    region = GetRegion(img, x, y);
-                    result[x, y] = new Derivative(region);
+                    double[] val = deriv[index];
+                    for (int j = 0; j < AutocorMatrixLength; j++)
+                    {
+                        sum[j] += val[j];
+                    }
                 }
             }
-            return result;
+            return sum;
         }
 
-        private double[,] GetRegion(FastBitmap img, int x, int y)
+        private Dictionary<int, double[]> GetImgDerivative(double[] img, int width, int height)
         {
-            double[,] region = new double[RegionLength, RegionLength];
-            for (int i = 0; i < RegionLength; i++)
-                for (int j = 0; j < RegionLength; j++)
+            var result = new Dictionary<int, double[]>();
+            double range = 0.1;
+            int rowIndex = 0;
+            for (int j = 0; j < height - 2; j++)
+            {
+                for (int i = 0; i < width - 2; i++ )
                 {
-                    region[i, j] = img.GetPixel(i + x - 1, j + y - 1).GetBrightness();
+                    int centerIndex = rowIndex + width + i + 1;
+                    double value = img[centerIndex];
+                    if (value > range)
+                    {
+                        Derivative d = new Derivative(img, rowIndex + i, width);
+                        if (Math.Abs(d.X) > range || Math.Abs(d.Y) > range)
+                        {
+                            var r = new double[AutocorMatrixLength];
+                            r[0] = d.X * d.X * value;
+                            r[1] = r[2] = d.X * d.Y * value;
+                            r[3] = d.Y * d.Y * value;
+                            if (r.Count(a=> Math.Abs(a) > range) >0)
+                                result.Add(centerIndex, r);
+                        }
+                    }
                 }
-            return region;
+                rowIndex += width;
+            }
+            return result;
         }
     }
 }
