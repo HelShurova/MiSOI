@@ -7,22 +7,63 @@ using System.Runtime.InteropServices;
 //http://www.codeproject.com/Tips/240428/Work-with-bitmap-faster-with-Csharp
 namespace Recognition.Model
 {
+
     public class FastBitmap
     {
-        Bitmap source = null;
-        IntPtr Iptr = IntPtr.Zero;
-        BitmapData bitmapData = null;
+        public Bitmap Source { get; private set; }
+        IntPtr _Iptr = IntPtr.Zero;
+        BitmapData _bitmapData = null;
 
-        public byte[] Pixels { get; set; }
+        public byte[] Pixels { get;private set; }
         public int Depth { get; private set; }
         public int Width { get; private set; }
         public int Height { get; private set; }
-        public Bitmap Bitmap { get; private set; }
+        public int CCount { get { return Depth / 8; } }
+        public PixelFormat PixelFormat { get; private set; }
+        public int Stride { get; private set; }
+
 
         public FastBitmap(Bitmap source)
         {
-            this.source = source;
-            this.Bitmap = source;
+            Width = source.Width;
+            Height = source.Height;
+            this.Source = source;
+            PixelFormat = Source.PixelFormat;
+            Depth = System.Drawing.Bitmap.GetPixelFormatSize(PixelFormat);
+            _brightPixels = ToGrayscale();
+        }
+
+        private byte[] _brightPixels;
+
+        public byte this[int x, int y]
+        {
+            get
+            {
+                return _brightPixels[y * Width + x];
+            }
+            set
+            {
+                _brightPixels[y * Width + x] = value;
+            }
+        }
+
+        private byte[] ToGrayscale()
+        {
+            int bytesPerChannel = Bitmap.GetPixelFormatSize(Source.PixelFormat) / 8;
+            Rectangle rect = new Rectangle(0, 0, Width, Height);
+            BitmapData colorData = Source.LockBits(rect, ImageLockMode.ReadOnly, Source.PixelFormat);
+            Stride = colorData.Stride;
+            IntPtr colorPointer = colorData.Scan0;
+            byte[] pixels = new byte[colorData.Height * colorData.Width * bytesPerChannel];
+            byte[] grayPixels = new byte[Width * Height];
+            Marshal.Copy(colorPointer, pixels, 0, pixels.Length);
+            Source.UnlockBits(colorData);
+            int j = 0;
+            for (int i = 0; i < pixels.Length; i += bytesPerChannel)
+            {
+                grayPixels[j++] = (byte)(0.299 * pixels[i + 2] + 0.587 * pixels[i + 1] + 0.114 * pixels[i]);
+            }
+            return grayPixels;
         }
 
         /// <summary>
@@ -32,18 +73,11 @@ namespace Recognition.Model
         {
             try
             {
-                // Get width and height of bitmap
-                Width = source.Width;
-                Height = source.Height;
-
                 // get total locked pixels count
                 int PixelCount = Width * Height;
 
                 // Create rectangle to lock
                 Rectangle rect = new Rectangle(0, 0, Width, Height);
-
-                // get source bitmap pixel format size
-                Depth = System.Drawing.Bitmap.GetPixelFormatSize(source.PixelFormat);
 
                 // Check if bpp (Bits Per Pixel) is 8, 24, or 32
                 if (Depth != 8 && Depth != 24 && Depth != 32)
@@ -52,16 +86,15 @@ namespace Recognition.Model
                 }
 
                 // Lock bitmap and return bitmap data
-                bitmapData = source.LockBits(rect, ImageLockMode.ReadWrite,
-                                             source.PixelFormat);
+                _bitmapData = Source.LockBits(rect, ImageLockMode.ReadWrite, PixelFormat);
 
                 // create byte array to copy pixel values
                 int step = Depth / 8;
                 Pixels = new byte[PixelCount * step];
-                Iptr = bitmapData.Scan0;
+                _Iptr = _bitmapData.Scan0;
 
                 // Copy data from pointer to array
-                Marshal.Copy(Iptr, Pixels, 0, Pixels.Length);
+                Marshal.Copy(_Iptr, Pixels, 0, Pixels.Length);
             }
             catch (Exception ex)
             {
@@ -77,15 +110,20 @@ namespace Recognition.Model
             try
             {
                 // Copy data from byte array to pointer
-                Marshal.Copy(Pixels, 0, Iptr, Pixels.Length);
+                Marshal.Copy(Pixels, 0, _Iptr, Pixels.Length);
 
                 // Unlock bitmap data
-                source.UnlockBits(bitmapData);
+                Source.UnlockBits(_bitmapData);
             }
             catch (Exception ex)
             {
                 throw ex;
             }
+        }
+
+        private int Index(int x, int y)
+        { 
+            return ((y * Width) + x) * CCount;
         }
 
         /// <summary>
@@ -98,13 +136,9 @@ namespace Recognition.Model
         {
             Color clr = Color.Empty;
 
-            // Get color components count
-            int cCount = Depth / 8;
+            int i = Index(x, y);
 
-            // Get start index of the specified pixel
-            int i = ((y * Width) + x) * cCount;
-
-            if (i > Pixels.Length - cCount)
+            if (i > Pixels.Length - CCount)
                 throw new IndexOutOfRangeException();
 
             if (Depth == 32) // For 32 bpp get Red, Green, Blue and Alpha
@@ -139,11 +173,7 @@ namespace Recognition.Model
         /// <param name="color"></param>
         public void SetPixel(int x, int y, Color color)
         {
-            // Get color components count
-            int cCount = Depth / 8;
-
-            // Get start index of the specified pixel
-            int i = ((y * Width) + x) * cCount;
+            int i = Index(x, y);
 
             if (Depth == 32) // For 32 bpp set Red, Green, Blue and Alpha
             {
