@@ -6,13 +6,14 @@ using System.Threading.Tasks;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Drawing.Drawing2D;
+using System.Collections.Concurrent;
 
 namespace Recognition.Model
 {
     public class LucasKanadeMethod
     {
         private const int POINT_WINDOW_SIDE = 8;
-        private const int MAX_DISPLACEMENT = 50;
+        private const int MAX_DISPLACEMENT = 150;
         private const int MAX_KOEFF = 300;
 
         private int _nBytesPerPixel;
@@ -21,52 +22,133 @@ namespace Recognition.Model
         public LucasKanadeMethod()
         {
         }
-        public FastBitmap GetImageWithDisplacement(FastBitmap currFrame, FastBitmap nextFrame, List<Point> edgePoints)
+        public List<FastBitmap> GetImageWithDisplacement(FastBitmap currFrame, FastBitmap nextFrame, List<Point> edgePoints)
         {
             _nBytesPerPixel = currFrame.CCount;
             currFrame.LockBits();
             nextFrame.LockBits();
             byte[] currRgbValues = currFrame.Pixels;
             byte[] nextRgbValues = nextFrame.Pixels;
-            Dictionary<Point, Point> displacements = new Dictionary<Point, Point>();
-            foreach (Point edgePoint in edgePoints)
+            ConcurrentDictionary<Point, Point> displacements = new ConcurrentDictionary<Point, Point>();
+            
+            Parallel.ForEach(edgePoints, (edgePoint) =>
             {
                 int edgePointPos;
                 List<Color> pointVicinity = GetPointVicinity(edgePoint, currRgbValues, currFrame.Width, currFrame.Height, currFrame.Stride, out edgePointPos);
-                _brief = new BRIEF((POINT_WINDOW_SIDE + 1) * (POINT_WINDOW_SIDE + 1),edgePointPos);
+                _brief = new BRIEF((POINT_WINDOW_SIDE + 1) * (POINT_WINDOW_SIDE + 1), edgePointPos);
                 string vicinityDescriptor = _brief.GetImageDescriptor(pointVicinity);
                 if (pointVicinity[edgePointPos] != Color.Black)
                 {
                     Point nextFramePoint = FindPointDiscplacement(edgePoint, nextRgbValues, nextFrame.Width, nextFrame.Height, vicinityDescriptor, nextFrame.Stride, pointVicinity[edgePointPos]);
-                    displacements.Add(edgePoint, nextFramePoint);
+                    displacements.TryAdd(edgePoint, nextFramePoint);
                 }
                 else
-                    displacements.Add(edgePoint,edgePoint);
-            }
+                    displacements.TryAdd(edgePoint, edgePoint);
+            });
+
             currFrame.UnlockBits();
             nextFrame.UnlockBits();
-            DrawDisplacement(currFrame, displacements);
-            return currFrame;
+
+            List<FastBitmap> frames = new List<FastBitmap>();
+            frames.Add(currFrame);
+            frames.AddRange(DrawDisplacement(currFrame, displacements));
+            //frames.Add();
+            return frames;
         }
 
-        private void DrawDisplacement(FastBitmap source,Dictionary<Point, Point> displacements)
+        private List<FastBitmap> DrawDisplacement(FastBitmap source, ConcurrentDictionary<Point, Point> displacements)
         {
-            Graphics graphics = Graphics.FromImage(source.Source);
             Pen pen = new Pen(Color.Aqua);
             pen.EndCap = LineCap.ArrowAnchor;
             RemoveLongLine(displacements);
+
+            Bitmap bmp = new Bitmap(source.Width, source.Height);
+            using (Graphics graph = Graphics.FromImage(bmp))
+            {
+                graph.FillRectangle(Brushes.White, new Rectangle(0, 0, source.Width, source.Height));
+            }
+            FastBitmap chanelXP = new FastBitmap(bmp);
+            FastBitmap chanelXM = new FastBitmap(bmp.Clone(new Rectangle(0, 0, source.Width, source.Height), source.PixelFormat));
+            FastBitmap chanelYP = new FastBitmap(bmp.Clone(new Rectangle(0, 0, source.Width, source.Height), source.PixelFormat));
+            FastBitmap chanelYM = new FastBitmap(bmp.Clone(new Rectangle(0, 0, source.Width, source.Height), source.PixelFormat));
+
+            Graphics graphics = Graphics.FromImage(source.Source);
+
+            chanelXP.LockBits();
+            chanelXM.LockBits();
+            chanelYP.LockBits();
+            chanelYM.LockBits();
+
             foreach (var displacement in displacements)
             {
+                int differenceX = displacement.Value.X - displacement.Key.X,
+                    differenceY = displacement.Value.Y - displacement.Key.Y;
+                bool isPosX = true, isPosY = true;
+                if (differenceX < 0)
+                    isPosX = false;
+                if (differenceY < 0)
+                    isPosY = false;
+
+                differenceX = (int)(255 * (1 - Math.Min(1, Math.Abs((double)differenceX / 10))));
+                differenceY = (int)(255 * (1 - Math.Min(1, Math.Abs((double)differenceY / 10))));
+
+                for (int y = displacement.Key.Y - 1; y <= displacement.Key.Y + 1; ++y)
+                    for (int x = displacement.Key.X - 1; x <= displacement.Key.X + 1; ++x)
+                    {
+                        if (isPosX)
+                        {
+                            chanelXP.SetPixel(x, y, Color.FromArgb(differenceX, differenceX, differenceX));
+                        }
+                        else
+                        {
+                            //differenceX = Math.Abs(differenceX);
+                            chanelXM.SetPixel(x, y, Color.FromArgb(differenceX, differenceX, differenceX));
+                        }
+                        if (isPosY)
+                        {
+                            chanelYM.SetPixel(x, y, Color.FromArgb(differenceY, differenceY, differenceY));
+                        }
+                        else
+                        {
+                            //differenceY = Math.Abs(differenceY);
+                            chanelYP.SetPixel(x, y, Color.FromArgb(differenceY, differenceY, differenceY));
+                        }
+                    }
                 if (displacement.Key.X == displacement.Value.X && displacement.Key.Y == displacement.Value.Y)
                     graphics.DrawLine(pen, displacement.Key, new Point(displacement.Value.X + 2, displacement.Value.Y + 2));
                 else
                     graphics.DrawLine(pen, displacement.Key, displacement.Value);
             }
-            graphics.Dispose();
+            //graphics.Dispose();
+            GaussianBlur blur = new GaussianBlur();
+            List<FastBitmap> frames = new List<FastBitmap>();
+            //blur.Filter(chanelXP);
+            //blur.Filter(chanelXM);
+            //blur.Filter(chanelYP);
+            //blur.Filter(chanelYM);
+
+            frames.Add(blur.Filter(chanelXP));
+            frames.Add(blur.Filter(chanelXM));
+            frames.Add(blur.Filter(chanelYP));
+            frames.Add(blur.Filter(chanelYM));
+
+            //frames.Add(chanelXP);
+            //frames.Add(chanelXM);
+            //frames.Add(chanelYP);
+            //frames.Add(chanelYM);
+
+
+
+            chanelXP.UnlockBits();
+            chanelXM.UnlockBits();
+            chanelYP.UnlockBits();
+            chanelYM.UnlockBits();
+
+            return frames;
         }
 
         //can be deleted: it was good idea for angel video
-        private void RemoveLongLine(Dictionary<Point, Point> displacements)
+        private void RemoveLongLine(ConcurrentDictionary<Point, Point> displacements)
         {
             for (int i = 0; i < displacements.Keys.Count;++i )
             {

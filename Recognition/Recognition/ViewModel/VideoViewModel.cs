@@ -19,7 +19,7 @@ namespace Recognition.ViewModel
     public class VideoViewModel : ViewModelBase
     {
         private const double TimerInterval = 0.2;
-        private const int Scale = 3;
+        private const int Scale = 6; //3
 
         private string _filePath;
         public string FilePath 
@@ -187,7 +187,7 @@ namespace Recognition.ViewModel
                     _nextSubMask = _vibeModel.GetMask(_nextFrame);
                     _nextSubFrame = ApplyMask(_nextSubMask, _nextFrame);
                     var flow = _lucasKanade.GetImageWithDisplacement(subFrame, _nextSubFrame, corners);
-                    SubstarectedFrame = flow.Source;
+                    SubstarectedFrame = flow[0].Source;
                     RealFrame = _nextFrame.Source;
                     CurrentPosition += (float)TimerInterval;
                 }
