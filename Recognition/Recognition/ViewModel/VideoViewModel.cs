@@ -13,6 +13,7 @@ using System.Collections.Generic;
 using System.Collections;
 using Recognition.Model;
 using System.Diagnostics;
+using Recognition.Model.Motion;
 
 namespace Recognition.ViewModel
 {
@@ -177,6 +178,7 @@ namespace Recognition.ViewModel
 
         private bool GetFlow(byte[] subMask, FastBitmap realFrame,FastBitmap subFrame, MemoryStream stream)
         {
+            Frame frame;
             bool isNext = true;
             List<Point> corners = _harries.Corner(subMask, subFrame.Width, subFrame.Height);
             if (corners.Count > 0)
@@ -186,8 +188,7 @@ namespace Recognition.ViewModel
                 {
                     _nextSubMask = _vibeModel.GetMask(_nextFrame);
                     _nextSubFrame = ApplyMask(_nextSubMask, _nextFrame);
-                    var flow = _lucasKanade.GetImageWithDisplacement(subFrame, _nextSubFrame, corners);
-                    SubstarectedFrame = flow[0].Source;
+                    SubstarectedFrame = _lucasKanade.GetImageWithDisplacement(subFrame, _nextSubFrame, corners, out frame).Source;
                     RealFrame = _nextFrame.Source;
                     CurrentPosition += (float)TimerInterval;
                 }
