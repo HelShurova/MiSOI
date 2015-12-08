@@ -7,6 +7,7 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.Drawing.Drawing2D;
 using System.Collections.Concurrent;
+using Recognition.Model.Motion;
 
 namespace Recognition.Model
 {
@@ -22,7 +23,7 @@ namespace Recognition.Model
         public LucasKanadeMethod()
         {
         }
-        public List<FastBitmap> GetImageWithDisplacement(FastBitmap currFrame, FastBitmap nextFrame, List<Point> edgePoints)
+        public FastBitmap GetImageWithDisplacement(FastBitmap currFrame, FastBitmap nextFrame, List<Point> edgePoints, out Frame frame)
         {
             _nBytesPerPixel = currFrame.CCount;
             currFrame.LockBits();
@@ -49,14 +50,12 @@ namespace Recognition.Model
             currFrame.UnlockBits();
             nextFrame.UnlockBits();
 
-            List<FastBitmap> frames = new List<FastBitmap>();
-            frames.Add(currFrame);
-            frames.AddRange(DrawDisplacement(currFrame, displacements));
+            frame = GetFrameByChanell(currFrame, displacements);
             //frames.Add();
-            return frames;
+            return currFrame;
         }
 
-        private List<FastBitmap> DrawDisplacement(FastBitmap source, ConcurrentDictionary<Point, Point> displacements)
+        private Frame GetFrameByChanell(FastBitmap source, ConcurrentDictionary<Point, Point> displacements)
         {
             Pen pen = new Pen(Color.Aqua);
             pen.EndCap = LineCap.ArrowAnchor;
@@ -67,17 +66,12 @@ namespace Recognition.Model
             {
                 graph.FillRectangle(Brushes.White, new Rectangle(0, 0, source.Width, source.Height));
             }
-            FastBitmap chanelXP = new FastBitmap(bmp);
-            FastBitmap chanelXM = new FastBitmap(bmp.Clone(new Rectangle(0, 0, source.Width, source.Height), source.PixelFormat));
-            FastBitmap chanelYP = new FastBitmap(bmp.Clone(new Rectangle(0, 0, source.Width, source.Height), source.PixelFormat));
-            FastBitmap chanelYM = new FastBitmap(bmp.Clone(new Rectangle(0, 0, source.Width, source.Height), source.PixelFormat));
+            double[,] chanelXP = new double[source.Width, source.Height];
+            double[,] chanelXM = new double[source.Width, source.Height];
+            double[,] chanelYP = new double[source.Width, source.Height];
+            double[,] chanelYM = new double[source.Width, source.Height];
 
             Graphics graphics = Graphics.FromImage(source.Source);
-
-            chanelXP.LockBits();
-            chanelXM.LockBits();
-            chanelYP.LockBits();
-            chanelYM.LockBits();
 
             foreach (var displacement in displacements)
             {
@@ -92,26 +86,29 @@ namespace Recognition.Model
                 differenceX = (int)(255 * (1 - Math.Min(1, Math.Abs((double)differenceX / 10))));
                 differenceY = (int)(255 * (1 - Math.Min(1, Math.Abs((double)differenceY / 10))));
 
+                double brightnessXColor = Color.FromArgb(differenceX, differenceX, differenceX).GetBrightness();
+                double brightnessYColor = Color.FromArgb(differenceY, differenceY, differenceY).GetBrightness();
+
                 for (int y = displacement.Key.Y - 1; y <= displacement.Key.Y + 1; ++y)
                     for (int x = displacement.Key.X - 1; x <= displacement.Key.X + 1; ++x)
                     {
                         if (isPosX)
                         {
-                            chanelXP.SetPixel(x, y, Color.FromArgb(differenceX, differenceX, differenceX));
+                            chanelXP[x, y] = brightnessXColor;
                         }
                         else
                         {
                             //differenceX = Math.Abs(differenceX);
-                            chanelXM.SetPixel(x, y, Color.FromArgb(differenceX, differenceX, differenceX));
+                            chanelXM[x, y] = brightnessXColor;
                         }
                         if (isPosY)
                         {
-                            chanelYM.SetPixel(x, y, Color.FromArgb(differenceY, differenceY, differenceY));
+                            chanelYM[x, y] = brightnessYColor;
                         }
                         else
                         {
                             //differenceY = Math.Abs(differenceY);
-                            chanelYP.SetPixel(x, y, Color.FromArgb(differenceY, differenceY, differenceY));
+                            chanelYP[x, y] = brightnessYColor;
                         }
                     }
                 if (displacement.Key.X == displacement.Value.X && displacement.Key.Y == displacement.Value.Y)
@@ -119,30 +116,8 @@ namespace Recognition.Model
                 else
                     graphics.DrawLine(pen, displacement.Key, displacement.Value);
             }
-            //graphics.Dispose();
             GaussianBlur blur = new GaussianBlur();
-            List<FastBitmap> frames = new List<FastBitmap>();
-            //blur.Filter(chanelXP);
-            //blur.Filter(chanelXM);
-            //blur.Filter(chanelYP);
-            //blur.Filter(chanelYM);
-
-            frames.Add(blur.Filter(chanelXP));
-            frames.Add(blur.Filter(chanelXM));
-            frames.Add(blur.Filter(chanelYP));
-            frames.Add(blur.Filter(chanelYM));
-
-            //frames.Add(chanelXP);
-            //frames.Add(chanelXM);
-            //frames.Add(chanelYP);
-            //frames.Add(chanelYM);
-
-
-
-            chanelXP.UnlockBits();
-            chanelXM.UnlockBits();
-            chanelYP.UnlockBits();
-            chanelYM.UnlockBits();
+            Frame frames = new Frame(blur.Filter(chanelXP), blur.Filter(chanelXM), blur.Filter(chanelYP), blur.Filter(chanelYM));
 
             return frames;
         }

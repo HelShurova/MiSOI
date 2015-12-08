@@ -30,20 +30,20 @@ namespace Recognition.Model
             this.Source = source;
             PixelFormat = Source.PixelFormat;
             Depth = System.Drawing.Bitmap.GetPixelFormatSize(PixelFormat);
-            _brightPixels = ToGrayscale();
+            _greyPixels = ToGrayscale();
         }
 
-        private byte[] _brightPixels;
+        private byte[] _greyPixels;
 
         public byte this[int x, int y]
         {
             get
             {
-                return _brightPixels[y * Width + x];
+                return _greyPixels[y * Width + x];
             }
             set
             {
-                _brightPixels[y * Width + x] = value;
+                _greyPixels[y * Width + x] = value;
             }
         }
 
@@ -65,6 +65,8 @@ namespace Recognition.Model
             }
             return grayPixels;
         }
+
+
 
         /// <summary>
         /// Lock bitmap data
