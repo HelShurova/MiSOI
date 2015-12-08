@@ -90,6 +90,7 @@
     <Compile Include="Model\LucasKanadeMethod.cs" />
     <Compile Include="Model\MedianFilter.cs" />
     <Compile Include="Model\Motion\Motion.cs" />
+    <Compile Include="Model\Motion\MotionSplitter.cs" />
     <Compile Include="Model\VibeModel.cs" />
     <Compile Include="ViewModel\VideoViewModel.cs" />
     <Compile Include="ViewModel\ViewModelLocator.cs" />
@@ -127,12 +128,10 @@
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
     </None>
     <AppDesigner Include="Properties\" />
+    <None Include="Resources\TrainigMotion\motions.bin" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
-  </ItemGroup>
-  <ItemGroup>
-    <Content Include="Resources\angel.mp4" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="View\Constrols\" />
@@ -146,6 +145,11 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Resources\TrainigMotion\Output2.mp4" />
+    <Resource Include="Resources\TrainigMotion\background.jpg" />
+    <Content Include="Resources\TrainigMotion\training %28online-video-cutter.com%29.mp4" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
