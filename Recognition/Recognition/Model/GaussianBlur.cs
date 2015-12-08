@@ -9,21 +9,15 @@ namespace Recognition.Model
 {
     class GaussianBlur
     {
-        //static int maxWin = 15;
-        //private const int K = 2;
-        //private const double SIGMA = 0.55;
         private int sigma;
         private int size;
         private double[] coefficients;
         private double sumCoef;
 
-        public FastBitmap Filter(FastBitmap bitmap)
+        public double[,] Filter(double[,] brightnesses)
         {
             sigma = 3;
             size = 3 * sigma;
-            //coefficients = CountCoefficients(sigma, size);
-
-//            int N = (int)Math.Ceiling(3 * sigma);
               coefficients = new double[ size * 2 + 1];
               coefficients[size] = 1;
               for (int i = 0; i <= size; i++)
@@ -33,135 +27,62 @@ namespace Recognition.Model
                   coefficients[size - i] = coefficients[size + i];
               }
 
+              int width = brightnesses.GetLength(0);  
+            int height = brightnesses.GetLength(1);
 
-            //double[,] buffer = new double[bitmap.Width, bitmap.Height];
-            //Parallel.For(0, bitmap.Height, j =>
-            //{
-            //    for (int i = size; i < bitmap.Width - size; i++)
-            //    {
-            //        double pix = 0;
-            //        for (int k = -size; k < size; k++)
-            //        {
-            //            pix += bitmap[i + k, j] * coefficients[k + size];
-            //        }
-            //        buffer[i, j] = pix / sumCoef;
-            //    }
-            //});
-
-            //Parallel.For(0, bitmap.Width, i =>
-            //{
-            //    for (int j = size; j < bitmap.Height - size; j++)
-            //    {
-            //        double pix = 0;
-            //        for (int k = -size; k < size; k++)
-            //        {
-            //            pix += buffer[i, j + k] * coefficients[k + size];
-            //        }
-            //        bitmap[(int)i, j] = (byte)(pix / sumCoef);
-            //    }
-            //});
-
-
-
-
-
-
-     //      // bitmap.LockBits();
-     //       int maxDim = bitmap.Width;
-            //Color[] tmp = new Color[bitmap.Width];
-     //       double s2 = 2 * sigma * sigma;
-     //       int N = (int)Math.Ceiling(3 * sigma);
-     //       double[] window = new double[ N * 2 + 1];
-     //       int maxWin = N * 2;
-     //       window[N] = 1;
-     //       for (int i = 0; i <= N; i++)
-     //       {
-     //           window[N + i] = Math.Exp(-i * i / s2);
-     //           window[N - i] = window[N + i];
-     //       }
-
-            Parallel.For(0, bitmap.Height, j =>
+            Parallel.For(0, height, j =>
             {
-                Color[] tmp = new Color[bitmap.Width];
-                for (int i = 0; i < bitmap.Width; i++)
+                double[] tmp = new double[width];
+                for (int i = 0; i < width; i++)
                 {
                     double sum = 0;
-                    Color newPoint = Color.FromArgb(0, 0, 0);
-                    double newPointR = 0;
-                    double newPointG = 0;
-                    double newPointB = 0;
+                    double newBright = 0;
                     int l = 0;
-                    //Color[] temp = new Color[size * 2 + 1];
                     for (int k = -size; k <= size; k++)
                     {
                         l = i + k;
-                        if (l >= 0 && l < bitmap.Width)
+                        if (l >= 0 && l < width)
                         {
-                            Color p = bitmap.GetPixel(l, j);
-                            newPointR = newPointR + p.R * coefficients[k + size];
-                            newPointG = newPointG + p.G * coefficients[k + size];
-                            newPointB = newPointB + p.B * coefficients[k + size];
-                            //newPoint = Color.FromArgb(
-                            //    (int)(Math.Min(255, )),
-                            //    (int)(Math.Min(255, )),
-                            //    (int)(Math.Min(255, )));
+                            double value = brightnesses[l, j];
+                            newBright = newBright + value * coefficients[k + size];
                             sum += coefficients[k + size];
-                            //temp[k + size] = newPoint;
                         }
                     }
-                    newPoint = Color.FromArgb(
-                            (int)(newPointR / sum),
-                            (int)(newPointG / sum),
-                            (int)(newPointB / sum));
-                    tmp[i] = newPoint;
+                    tmp[i] = newBright;
                 }
-                for (int i = 0; i < bitmap.Width; i++)
+                for (int i = 0; i < width; i++)
                 {
-                    bitmap.SetPixel(i, j, tmp[i]);
+                    brightnesses[i, j] = tmp[i];
                 }
             });
-            Parallel.For(0, bitmap.Width, i =>
+            Parallel.For(0, width, i =>
             {
-                Color[] tmp = new Color[bitmap.Height];
-                for (int j = 0; j < bitmap.Height; j++)
+                double[] tmp = new double[height];
+                for (int j = 0; j < height; j++)
                 {
                     double sum = 0;
-                    double newPointR = 0;
-                    double newPointG = 0;
-                    double newPointB = 0;
+                    double newBright = 0;
 
                     Color newPoint = Color.FromArgb(0, 0, 0);
                     int l = 0;
                     for (int k = -size; k <= size; k++)
                     {
                         l = j + k;
-                        if (l >= 0 && l < bitmap.Height)
+                        if (l >= 0 && l < height)
                         {
-                            Color p = bitmap.GetPixel(i, l);
-                            newPointR = newPointR + p.R * coefficients[k + size];
-                            newPointG = newPointG + p.G * coefficients[k + size];
-                            newPointB = newPointB + p.B * coefficients[k + size];
-
-                            //newPoint = Color.FromArgb(
-                            //    (int)(Math.Min(255, newPoint.R + p.R * coefficients[k + size])),
-                            //    (int)(Math.Min(255, newPoint.G + p.G * coefficients[k + size])),
-                            //    (int)(Math.Min(255, newPoint.B + p.B * coefficients[k + size])));
+                            double value = brightnesses[i, l];
+                            newBright = newBright + value * coefficients[k + size];
                             sum += coefficients[k + size];
                         }
                     }
-                    newPoint = Color.FromArgb(
-                            (int)(newPointR / sum),
-                            (int)(newPointG / sum),
-                            (int)(newPointB / sum));
-                    tmp[j] = newPoint;
+                    tmp[j] = newBright;
                 }
-                for (int j = 0; j < bitmap.Height; j++)
+                for (int j = 0; j < height; j++)
                 {
-                    bitmap.SetPixel(i, j, tmp[j]);
+                    brightnesses[i, j] = tmp[j];
                 }
             });
-     ////       bitmap.UnlockBits();
-            return bitmap;
+            return brightnesses;
         }
 
     }
