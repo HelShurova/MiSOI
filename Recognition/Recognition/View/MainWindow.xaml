@@ -5,10 +5,9 @@
                       xmlns:converter="clr-namespace:Recognition.View.Converter"
                       DataContext="{Binding VideoVM, Source={StaticResource Locator}}"
                       Title="{Binding FileName, Mode=OneWay, StringFormat=Recognition ({0})}" 
-                      Height="530" Width="502" BorderBrush="Black" FontSize="8">
+                      Height="303.134" Width="416.925" BorderBrush="Black" FontSize="8">
     <Window.Resources>
-        <converter:ImageToBitmapSourceConverter x:Key="img"/>
-        <converter:NextFrameEnableConverter x:Key="frameEnable"/>
+        <converter:IsFileLoaded x:Key="fileLoaded"/>
     </Window.Resources>
     <Grid>
         <Grid.ColumnDefinitions>
@@ -27,28 +26,49 @@
                     </Rectangle.OpacityMask>
                 </Rectangle>
             </Button>
-            <Button Style="{DynamicResource MetroCircleButtonStyle}" Margin="2" Height="40" Command="{Binding GetNextFrameCommand}" IsEnabled="{Binding CurrentPosition, Converter={StaticResource frameEnable}}">
-                <Rectangle Width="20"
-               Height="20"
-               Fill="{DynamicResource BlackBrush}">
-                    <Rectangle.OpacityMask>
-                        <VisualBrush Stretch="Fill"
-                         Visual="{DynamicResource appbar_arrow_right}"/>
-                    </Rectangle.OpacityMask>
-                </Rectangle>
-            </Button>
         </StackPanel>
-        <Grid Grid.Column="1">
+        <Grid Margin="0,0,2,4" Grid.Column="1">
             <Grid.RowDefinitions>
+                <RowDefinition Height="6*"/>
                 <RowDefinition Height="1*"/>
                 <RowDefinition Height="1*"/>
             </Grid.RowDefinitions>
-            <Border Margin="5" Grid.Row="0" HorizontalAlignment="Center">
-                <Image Source="{Binding SubstarectedFrame, Converter={StaticResource img}}"/>
-            </Border>
-            <Border Margin="5" Grid.Row="1" HorizontalAlignment="Center">
-                <Image Source="{Binding RealFrame, Converter={StaticResource img}}"/>
-            </Border>
-        </Grid>        
+            <MediaElement Grid.Row="0" Margin="10" HorizontalAlignment="Center" VerticalAlignment="Center"  UnloadedBehavior="Close" LoadedBehavior="Manual" Name="my_media"/>
+            <Label Content="{Binding MotionLabel}" HorizontalAlignment="Center" Grid.Row="1" VerticalAlignment="Center" Width="343"/>
+            <StackPanel Orientation="Horizontal" Grid.Row="2">
+                <StackPanel.Triggers>
+                    <EventTrigger RoutedEvent="Button.Click" SourceName="cmd_play">
+                        <EventTrigger.Actions>
+                            <BeginStoryboard Name="MediaStoryboard">
+                                <Storyboard>
+                                    <MediaTimeline Storyboard.TargetName="my_media"
+                                                       Source="{Binding FilePath}"></MediaTimeline>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger.Actions>
+                    </EventTrigger>
+                    <EventTrigger RoutedEvent="Button.Click" SourceName="cmd_stop">
+                        <EventTrigger.Actions>
+                            <StopStoryboard BeginStoryboardName="MediaStoryboard"></StopStoryboard>
+                        </EventTrigger.Actions>
+                    </EventTrigger>
+                    <EventTrigger RoutedEvent="Button.Click" SourceName="cmd_pause">
+                        <EventTrigger.Actions>
+                            <PauseStoryboard BeginStoryboardName="MediaStoryboard"></PauseStoryboard>
+                        </EventTrigger.Actions>
+                    </EventTrigger>
+                    <EventTrigger RoutedEvent="Button.Click" SourceName="cmd_resume">
+                        <EventTrigger.Actions>
+                            <ResumeStoryboard BeginStoryboardName="MediaStoryboard"></ResumeStoryboard>
+                        </EventTrigger.Actions>
+                    </EventTrigger>
+                </StackPanel.Triggers>
+                <Button Name="cmd_play" Width="70" Margin="5,0" IsEnabled="{Binding FilePath, Converter={StaticResource fileLoaded}}">Play</Button>
+                <Button Name="cmd_stop" Width="70" Margin="5,0" IsEnabled="{Binding FilePath, Converter={StaticResource fileLoaded}}">Stop</Button>
+                <Button Name="cmd_pause" Width="70" Margin="5,0" IsEnabled="{Binding FilePath, Converter={StaticResource fileLoaded}}">Pause</Button>
+                <Button Name="cmd_resume" Width="70" Margin="5,0" IsEnabled="{Binding FilePath, Converter={StaticResource fileLoaded}}">Resume</Button>
+            </StackPanel>
+        </Grid>
     </Grid>
+    
 </Controls:MetroWindow>
