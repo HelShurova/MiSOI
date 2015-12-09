@@ -82,6 +82,9 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="Model\ActionDetection.cs">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Model\BRIEF.cs" />
     <Compile Include="Model\Derivative.cs" />
     <Compile Include="Model\FastBitmap.cs" />
@@ -94,12 +97,11 @@
     <Compile Include="Model\VibeModel.cs" />
     <Compile Include="ViewModel\VideoViewModel.cs" />
     <Compile Include="ViewModel\ViewModelLocator.cs" />
-    <Compile Include="View\Converter\ImageToBitmapSourceConverter.cs" />
     <Compile Include="App.xaml.cs">
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="View\Converter\NextFrameEnableConverter.cs" />
+    <Compile Include="View\Converter\IsFileLoaded.cs" />
     <Compile Include="View\MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
     </Compile>
@@ -147,6 +149,9 @@
     </Page>
   </ItemGroup>
   <ItemGroup>
+    <Resource Include="Resources\Pause.ico" />
+    <Resource Include="Resources\Play.png" />
+    <Resource Include="Resources\Stop.png" />
     <Content Include="Resources\TrainigMotion\Output2.mp4" />
     <Resource Include="Resources\TrainigMotion\background.jpg" />
     <Content Include="Resources\TrainigMotion\training %28online-video-cutter.com%29.mp4" />

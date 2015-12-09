@@ -7,12 +7,12 @@ using System.Windows.Data;
 
 namespace Recognition.View.Converter
 {
-    [ValueConversion(typeof(int), typeof(bool))]
-    class NextFrameEnableConverter : IValueConverter
+    [ValueConversion(typeof(string), typeof(bool))]
+    class IsFileLoaded : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
         {
-            return (float)value >= 0 ? true : false;
+            return !string.IsNullOrEmpty((string)value);
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
