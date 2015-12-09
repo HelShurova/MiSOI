@@ -8,8 +8,9 @@ namespace Recognition.Model.Motion
 {
     public class MotionSplitter
     {
-        string path = AppDomain.CurrentDomain.BaseDirectory;
-        const string FilePath = @"..\..\Resources\TrainigMotion\training (online-video-cutter.com).mp4";
+        public const string TrainingMotionBin = @"..\..\Resources\TrainigMotion\motions.bin";
+        const string TrainingMotionVideo = @"..\..\Resources\TrainigMotion\training (online-video-cutter.com).mp4";
+        const string TrainingBackground = @"..\..\Resources\TrainigMotion\background.jpg";
         const double TimerInterval = 0.2;
         const int DescriptorCount = 5;
         const int Scale = 6;
@@ -30,9 +31,9 @@ namespace Recognition.Model.Motion
             _lucasKanade = new LucasKanadeMethod();
         }
 
-        private void InitBackground()
+        private void InitBackgroundByImage(string file)
         {
-            Image img = Image.FromFile(@"..\..\Resources\TrainigMotion\background.jpg");
+            Image img = Image.FromFile(file);
             var fb = new FastBitmap(new Bitmap(img, img.Width / Scale, img.Height / Scale));
             _vibeModel.Initialize(fb);
         }
@@ -51,11 +52,11 @@ namespace Recognition.Model.Motion
         //    }
         //}
 
-        private FastBitmap GetBitmap(float time, MemoryStream stream)
+        private FastBitmap GetBitmap(float time, MemoryStream stream, string file)
         {
             FastBitmap result = null;
             var ffMpeg = new NReco.VideoConverter.FFMpegConverter();
-            ffMpeg.GetVideoThumbnail(FilePath, stream, time);
+            ffMpeg.GetVideoThumbnail(file, stream, time);
             if (stream.Length != 0)
             {
                 Image img = Image.FromStream(stream);
@@ -64,14 +65,46 @@ namespace Recognition.Model.Motion
             return result;
         }
 
-        public void Split()
+        public List<Motion> TrainingSplit()
         {
-            InitBackground();
+            _currentPosition = 0;
             List<Motion> motions = new List<Motion>();
-            List<Frame> frames = new List<Frame>();
+            InitBackgroundByImage(TrainingBackground);
+            var frames = Split(TrainingMotionVideo);
             int labelIndex = 0;
+            int descriptionIndex = 0;
+            List<Frame> motion = new List<Frame>();
+            foreach(Frame f in frames)
+            {
+                motion.Add(f);
+                descriptionIndex++;
+                if (descriptionIndex == DescriptorCount)
+                {
+                    descriptionIndex = 0;
+                    motions.Add(new Motion(MotionLabel[labelIndex], motion));
+                    labelIndex++;
+                    motion = new List<Frame>();
+                }
+            }
+            return motions;
+        }
+
+        public List<Frame> TestSplit(string file)
+        {
+            _currentPosition = 0;
+            using (MemoryStream stream = new MemoryStream())
+            {
+                var bitmap = GetBitmap(_currentPosition, stream, file);
+                _vibeModel.Initialize(bitmap);
+            }
+            List<Frame> frames = Split(file);
+            return frames;
+        }
+
+        public List<Frame> Split(string file)
+        {
+            List<Frame> frames = new List<Frame>();
             bool isNext = true;
-            int descriptorIndex = 0;
             while (isNext)
             {
                 FastBitmap realFrame = null;
@@ -81,7 +114,7 @@ namespace Recognition.Model.Motion
                 {
                     if (_currentPosition - TimerInterval < 0.0001)
                     {
-                        realFrame = GetBitmap(_currentPosition, stream);
+                        realFrame = GetBitmap(_currentPosition, stream, file);
                         subtractedMask = _vibeModel.GetMask(realFrame);
                         subFrame = ApplyMask(subtractedMask, realFrame);
                     }
@@ -92,35 +125,29 @@ namespace Recognition.Model.Motion
                         subFrame = _nextSubFrame;
                     }
                     Frame frame;
-                    isNext = GetFlow(subtractedMask, realFrame, subFrame, stream, out frame);
+                    isNext = GetFlow(subtractedMask, realFrame, subFrame, stream,file, out frame);
                     frames.Add(frame);
-                    descriptorIndex++;
-                    if (descriptorIndex == DescriptorCount)
-                    {
-                        motions.Add(new Motion(MotionLabel[labelIndex], frames));
-                        descriptorIndex = 0;
-                        frames = new List<Frame>();
-                        labelIndex++;
-                    }
                 }
             }
-            SerializeMotions(motions);
+            return frames;
         }
 
-        private void SerializeMotions(List<Motion> motions)
+        private void SerializeMotions(List<Motion> motions, string file)
         {
             
-            using (Stream stream = File.Open(@"..\..\Resources\TrainigMotion\motions.bin", FileMode.Create))
+            using (Stream stream = File.Open(file, FileMode.Create))
             {
                 BinaryFormatter bin = new BinaryFormatter();
                 bin.Serialize(stream, motions);
             }
         }
 
-        public List<Motion> GetTrainigMotion()
+        
+
+        public List<Motion> GetMotion(string file)
         {
             List<Motion> result = null;
-            using (Stream stream = File.Open(@"..\..\Resources\TrainigMotion\motions.bin", FileMode.Open))
+            using (Stream stream = File.Open(file, FileMode.Open))
             {
                 BinaryFormatter bin = new BinaryFormatter();
                 result = (List<Motion>)bin.Deserialize(stream);
@@ -128,14 +155,14 @@ namespace Recognition.Model.Motion
             return result;
         }
 
-        private bool GetFlow(byte[] subMask, FastBitmap realFrame, FastBitmap subFrame, MemoryStream stream, out Frame frame)
+        private bool GetFlow(byte[] subMask, FastBitmap realFrame, FastBitmap subFrame, MemoryStream stream, string file, out Frame frame)
         {
             Frame localFrame =null;
             bool isNext = true;
             List<Point> corners = _harries.Corner(subMask, subFrame.Width, subFrame.Height);
             if (corners.Count > 0)
             {
-                _nextFrame = GetBitmap(_currentPosition + (float)TimerInterval, stream);
+                _nextFrame = GetBitmap(_currentPosition + (float)TimerInterval, stream, file);
                 if (_nextFrame != null)
                 {
                     _nextSubMask = _vibeModel.GetMask(_nextFrame);
