@@ -122,9 +122,12 @@ namespace Recognition.ViewModel
 
         private void OnTimedEvent(Object source, ElapsedEventArgs e)
         {
-            MotionLabel = _actionSequence[_actionIndex];
-            _actionIndex++;
-            if (_actionIndex == _actionSequence.Length)
+            if (_actionIndex < _actionSequence.Length)
+            {
+                MotionLabel = _actionSequence[_actionIndex];
+                _actionIndex++;
+            }
+            else
             {
                 _actionIndex = 0;
                 _timer.Enabled = false;

@@ -126,7 +126,8 @@ namespace Recognition.Model.Motion
                     }
                     Frame frame;
                     isNext = GetFlow(subtractedMask, realFrame, subFrame, stream,file, out frame);
-                    frames.Add(frame);
+                    if (frame != null)
+                        frames.Add(frame);
                 }
             }
             return frames;
