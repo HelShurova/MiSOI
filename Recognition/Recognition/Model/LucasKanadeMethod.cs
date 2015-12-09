@@ -11,6 +11,18 @@ using Recognition.Model.Motion;
 
 namespace Recognition.Model
 {
+    public class ReturnImage
+    {
+        public Frame frame {get; set;}
+        public FastBitmap bitmap{ get; set;}
+
+        public ReturnImage(Frame frame, FastBitmap bitmap)
+        {
+            this.frame = frame;
+            this.bitmap = bitmap;
+        }
+
+    }
     public class LucasKanadeMethod
     {
         private const int POINT_WINDOW_SIDE = 8;
@@ -23,7 +35,9 @@ namespace Recognition.Model
         public LucasKanadeMethod()
         {
         }
-        public FastBitmap GetImageWithDisplacement(FastBitmap currFrame, FastBitmap nextFrame, List<Point> edgePoints, out Frame frame)
+
+
+        public ReturnImage GetImageWithDisplacement(FastBitmap currFrame, FastBitmap nextFrame, List<Point> edgePoints)
         {
             _nBytesPerPixel = currFrame.CCount;
             currFrame.LockBits();
@@ -50,9 +64,10 @@ namespace Recognition.Model
             currFrame.UnlockBits();
             nextFrame.UnlockBits();
 
-            frame = GetFrameByChanell(currFrame, displacements);
+            Frame frame = GetFrameByChanell(currFrame, displacements);
             //frames.Add();
-            return currFrame;
+            ReturnImage image = new ReturnImage(frame, currFrame);
+            return image;
         }
 
         private Frame GetFrameByChanell(FastBitmap source, ConcurrentDictionary<Point, Point> displacements)
@@ -117,9 +132,9 @@ namespace Recognition.Model
                     graphics.DrawLine(pen, displacement.Key, displacement.Value);
             }
             GaussianBlur blur = new GaussianBlur();
-            Frame frames = new Frame(blur.Filter(chanelXP), blur.Filter(chanelXM), blur.Filter(chanelYP), blur.Filter(chanelYM));
+            Frame frame = new Frame(blur.Filter(chanelXP), blur.Filter(chanelXM), blur.Filter(chanelYP), blur.Filter(chanelYM));
 
-            return frames;
+            return frame;
         }
 
         //can be deleted: it was good idea for angel video

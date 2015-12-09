@@ -140,7 +140,7 @@ namespace Recognition.Model.Motion
                 {
                     _nextSubMask = _vibeModel.GetMask(_nextFrame);
                     _nextSubFrame = ApplyMask(_nextSubMask, _nextFrame);
-                    _lucasKanade.GetImageWithDisplacement(subFrame, _nextSubFrame, corners, out localFrame);
+                    _lucasKanade.GetImageWithDisplacement(subFrame, _nextSubFrame, corners);
                     _currentPosition += (float)TimerInterval;
                 }
                 else
