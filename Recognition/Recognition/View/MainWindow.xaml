@@ -63,10 +63,10 @@
                         </EventTrigger.Actions>
                     </EventTrigger>
                 </StackPanel.Triggers>
-                <Button Name="cmd_play" Width="70" Margin="5,0" IsEnabled="{Binding FilePath, Converter={StaticResource fileLoaded}}">Play</Button>
-                <Button Name="cmd_stop" Width="70" Margin="5,0" IsEnabled="{Binding FilePath, Converter={StaticResource fileLoaded}}">Stop</Button>
-                <Button Name="cmd_pause" Width="70" Margin="5,0" IsEnabled="{Binding FilePath, Converter={StaticResource fileLoaded}}">Pause</Button>
-                <Button Name="cmd_resume" Width="70" Margin="5,0" IsEnabled="{Binding FilePath, Converter={StaticResource fileLoaded}}">Resume</Button>
+                <Button Name="cmd_play" Width="70" Margin="5,0" IsEnabled="{Binding CalculationComplete}" Command="{Binding PlayCommand}">Play</Button>
+                <Button Name="cmd_stop" Width="70" Margin="5,0" IsEnabled="{Binding CalculationComplete}" Command="{Binding StopCommand}">Stop</Button>
+                <Button Name="cmd_pause" Width="70" Margin="5,0" IsEnabled="{Binding CalculationComplete}" Command="{Binding PauseCommand}">Pause</Button>
+                <Button Name="cmd_resume" Width="70" Margin="5,0" IsEnabled="{Binding CalculationComplete}" Command="{Binding ResumeCommand}">Resume</Button>
             </StackPanel>
         </Grid>
     </Grid>
