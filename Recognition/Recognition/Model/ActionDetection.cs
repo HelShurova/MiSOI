@@ -32,27 +32,30 @@ namespace Recognition.Model
             int[,] matrix = new int[motions.Count*5, frames.Count];
             int countFrame = 0;
             foreach(Frame frame in frames){
-                int countMotion = 0;
-                foreach (Recognition.Model.Motion.Motion motion in motions)
+                if (frame != null)
                 {
-                    foreach (Frame motionFrame in motion.Frames)
+                    int countMotion = 0;
+                    foreach (Recognition.Model.Motion.Motion motion in motions)
                     {
-                        double correlationFrame = Correlation(TwoDToOneD(frame.XN), TwoDToOneD(motionFrame.XN)) 
-                                                + Correlation(TwoDToOneD(frame.XP), TwoDToOneD(motionFrame.XP)) 
-                                                + Correlation(TwoDToOneD(frame.YN), TwoDToOneD(motionFrame.YN)) 
-                                                + Correlation(TwoDToOneD(frame.YP), TwoDToOneD(motionFrame.YP)) ;
-                                                    
-                        matrix[countMotion, countFrame] = Convert.ToInt32(correlationFrame / 4 * 255);
-                        countMotion++;
+                        foreach (Frame motionFrame in motion.Frames)
+                        {
+                            double correlationFrame = Correlation(TwoDToOneD(frame.XN), TwoDToOneD(motionFrame.XN))
+                                                    + Correlation(TwoDToOneD(frame.XP), TwoDToOneD(motionFrame.XP))
+                                                    + Correlation(TwoDToOneD(frame.YN), TwoDToOneD(motionFrame.YN))
+                                                    + Correlation(TwoDToOneD(frame.YP), TwoDToOneD(motionFrame.YP));
+
+                            matrix[countMotion, countFrame] = Convert.ToInt32(correlationFrame / 4 * 255);
+                            countMotion++;
+                        }
+                        DispatcherFrame frameB = new DispatcherFrame();
+                        Dispatcher.CurrentDispatcher.BeginInvoke(DispatcherPriority.Background, new DispatcherOperationCallback(ExitFrame), frameB);
+                        Dispatcher.PushFrame(frameB);
                     }
-                    DispatcherFrame frameB = new DispatcherFrame();
-                    Dispatcher.CurrentDispatcher.BeginInvoke(DispatcherPriority.Background, new DispatcherOperationCallback(ExitFrame), frameB);
-                    Dispatcher.PushFrame(frameB);
+                    countFrame++;
+                    //if (countFrame == 40)
+                    //    return matrix;
+                    Console.Write(countFrame);
                 }
-                countFrame++;
-                //if (countFrame == 40)
-                //    return matrix;
-                Console.Write(countFrame);
             }
             return matrix;
         }
