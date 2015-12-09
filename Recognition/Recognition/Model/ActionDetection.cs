@@ -4,6 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Recognition.Model.Motion;
+using System.Windows;
+using System.ComponentModel;
+using System.Windows.Threading;
 
 namespace Recognition.Model
 {
@@ -16,6 +19,12 @@ namespace Recognition.Model
         {
             this.motions = motions;
             this.frames = frames;
+        }
+
+        private object ExitFrame(object f)
+        {
+            ((DispatcherFrame)f).Continue = false;
+            return null;
         }
 
         public int[,] calculateMatrix()
@@ -36,10 +45,13 @@ namespace Recognition.Model
                         matrix[countMotion, countFrame] = Convert.ToInt32(correlationFrame / 4 * 255);
                         countMotion++;
                     }
+                    DispatcherFrame frameB = new DispatcherFrame();
+                    Dispatcher.CurrentDispatcher.BeginInvoke(DispatcherPriority.Background, new DispatcherOperationCallback(ExitFrame), frameB);
+                    Dispatcher.PushFrame(frameB);
                 }
                 countFrame++;
-                if (countFrame == 35)
-                    return matrix;
+                //if (countFrame == 40)
+                //    return matrix;
                 Console.Write(countFrame);
             }
             return matrix;
@@ -87,11 +99,15 @@ namespace Recognition.Model
                 int max = 0;
                 for (int i = 0; i < 3; i++)
                 {
-                    if (matrixMotions[i, j] > max)
+                    if (matrixMotions[i, j] > max && matrixMotions[i, j] > 10)
                     {
                         actionSequence[j] = motions[i].Label;
                         max = matrixMotions[i, j];
                     }
+                }
+                if (actionSequence[j] == "")
+                {
+                    actionSequence[j] = "Не определено";
                 }
                 Console.Write(actionSequence[j] + "\t");
             }
